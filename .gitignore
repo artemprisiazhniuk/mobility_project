@@ -3,6 +3,7 @@
 # Data
 *.csv
 *.json
+*.jsonl
 *.txt
 
 
