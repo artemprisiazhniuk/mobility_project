@@ -3,6 +3,7 @@ import json
 import os
 import argparse
 import re
+from collections import defaultdict
 
 from transformers import AutoTokenizer
 import evaluate
@@ -80,7 +81,7 @@ def evaluate_extraction(true_entities_dict, predicted_entities_dict, tokenizer=N
         precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
         recall    = TP / (TP + FN) if (TP + FN) > 0 else 0.0
         f1        = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
-        per_entity_results[etype] = {"Precision": precision, "Recall": recall, "F1": f1}
+        per_entity_results[etype] = {"Precision": round(precision, 3), "Recall": round(recall, 3), "F1": round(f1, 3)}
 
     # Macro-average: average the metric scores over all entity types
     macro_precision = sum(result["Precision"] for result in per_entity_results.values()) / len(entity_types)
@@ -246,24 +247,50 @@ def main(args):
         for metric, value in results.items():
             print(f"  {metric}: {value}")
     
+        #region micro-macro averaging
         metrics = dict()
         if os.path.exists(os.path.join(args.output_folder, "metrics_extr.json")):
             metrics = json.load(open(os.path.join(args.output_folder, "metrics_extr.json")))
             
+        if args.automatic_file.split('.')[0] in metrics:
+            for key in metrics[args.automatic_file.split('.')[0]]:
+                value = metrics[args.automatic_file.split('.')[0]][key]
+                other_value = results[key]
+                
+                metrics[args.automatic_file.split('.')[0]][key] = value + other_value
+        else:
+            metrics[args.automatic_file.split('.')[0]] = results
+                
         with open(os.path.join(args.output_folder, "metrics_extr.json"), "w") as f:
-            if args.automatic_file.split('.')[0] in metrics:
-                for key in metrics[args.automatic_file.split('.')[0]]:
-                    value = metrics[args.automatic_file.split('.')[0]][key]
-                    other_value = results[key]
-                    
-                    metrics[args.automatic_file.split('.')[0]][key] = value + other_value
-            else:
-                metrics[args.automatic_file.split('.')[0]] = results
             json.dump(metrics, f, indent=4)
+        #endregion 
             
-        with open(os.path.join(args.output_folder, "errors", f"{args.automatic_file.split('.')[0]}_fp.json"), "w") as f:
+        #region class-level
+        metrics = dict()
+        if os.path.exists(os.path.join(args.output_folder, "metrics_extr_per_class.json")):
+            metrics = json.load(open(os.path.join(args.output_folder, "metrics_extr_per_class.json")))
+        
+        for etype, prf in per_entity_results.items():
+            prf = {metric: [round(value, 3)] for metric, value in prf.items()}
+            per_entity_results[etype] = prf
+        
+        if args.automatic_file.split('.')[0] in metrics:
+            method = args.automatic_file.split('.')[0]
+            for etype, metrics_ in metrics[method].items():
+                for metric, value in metrics_.items():
+                    other_value = per_entity_results[etype][metric]
+                    
+                    metrics[method][etype][metric] = value + other_value
+        else:
+            metrics[args.automatic_file.split('.')[0]] = per_entity_results
+                
+        with open(os.path.join(args.output_folder, "metrics_extr_per_class.json"), "w") as f:
+            json.dump(metrics, f, indent=4)
+        #endregion
+        
+        with open(os.path.join(args.output_folder, "errors", f"{args.automatic_file.split('.')[0]}_per_class_fp.json"), "w") as f:
             json.dump(fp_array, f, indent=4)
-        with open(os.path.join(args.output_folder, "errors", f"{args.automatic_file.split('.')[0]}_fn.json"), "w") as f:
+        with open(os.path.join(args.output_folder, "errors", f"{args.automatic_file.split('.')[0]}_per_class_fn.json"), "w") as f:
             json.dump(fn_array, f, indent=4)
             
     elif args.eval_type == "bio":
@@ -299,7 +326,7 @@ if __name__ == "__main__":
     parser.add_argument("-af", "--automatic-file", type=str, required=True)
     parser.add_argument("--manual-file", type=str, default="./data/labels_manual.jsonl")
     parser.add_argument("--output-folder", type=str, default="./data/analysis")
-    parser.add_argument("--eval-type", type=str, default="bio") # bio, extraction
+    parser.add_argument("--eval-type", type=str, default="extraction") # bio, extraction
     parser.add_argument("--model-name", type=str, default="bert-base-cased")
     parser.add_argument("--texts-folder", type=str, default="./data/lyrics")
     args = parser.parse_args()

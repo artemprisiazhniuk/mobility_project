@@ -23,7 +23,7 @@ nlp = stanza.Pipeline('en', processors='tokenize,pos')
 class ResponseSchema(BaseModel):
     entities: dict[str, list[str]]
     
-SLEEP_TIME = 1
+SLEEP_TIME = 2
 
 def majority_vote(results):
     counts = {}
@@ -249,14 +249,17 @@ def main(args):
     
     results = []
     
-    for filename in tqdm(os.listdir(args.input_folder), "Inference"):
-        with open(os.path.join(args.input_folder, filename), "r") as f:
-            text = f.read()
-        result = annotate(text, entity_metadata, entity_vocab, 
-                          num_examples=args.num_examples, few_shot_strategy=args.few_shot_strategy,
-                          pos_tooling=args.pos_tooling, negative_sampling=args.negative_sampling)
-        result["id"] = filename.split(".")[0]
-        results.append(result)
+    for filename in tqdm(os.listdir(args.input_folder), "inference"):
+        try:
+            with open(os.path.join(args.input_folder, filename), "r") as f:
+                text = f.read()
+            result = annotate(text, entity_metadata, entity_vocab, 
+                            num_examples=args.num_examples, few_shot_strategy=args.few_shot_strategy,
+                            pos_tooling=args.pos_tooling, negative_sampling=args.negative_sampling)
+            result["id"] = filename.split(".")[0]
+            results.append(result)
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
             
         time.sleep(SLEEP_TIME)
     
