@@ -1,0 +1,16 @@
+beautifulsoup4==4.12.3
+openai
+pydantic
+scikit-learn
+tqdm
+python-dotenv
+stanza
+transformers 
+datasets 
+evaluate 
+mlflow 
+'accelerate>=0.26.0' 
+seqeval 
+peft 
+tiktoken 
+sentencepiece

@@ -7,6 +7,13 @@ w2v/
 *.jsonl
 *.txt
 
+!data/definitions.json
+!data/entity_metadata.json
+!data/labels_manual.jsonl
+!data/synonyms.json
+!requirements.txt
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,0 +1,26 @@
+Bootstrap: docker
+From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
+
+%labels
+    Author Artem Pris
+    Description Container
+
+%environment
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export PATH=/usr/local/bin:$PATH
+
+%post
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y vim python3-pip git libglib2.0-0 libglib2.0-dev
+
+    mkdir -p /app/
+    chmod -R 755 /app
+
+    pip install tqdm transformers datasets evaluate mlflow 'accelerate>=0.26.0' seqeval peft tiktoken sentencepiece
+
+%files
+    train.py /app/train.py
+    train_seq2seq.py /app/train_seq2seq.py
+    inference.py /app/inference.py
+    inference_seq2seq.py /app/inference_seq2seq.py
